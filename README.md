@@ -14,8 +14,9 @@
 
 - 多轮对话求职辅导：JD 解析、简历内容生成、能力缺口分析、模拟面试问答
 - 持久化的会话历史：每条消息写入 SQLite，刷新或重启后从左侧侧边栏选择即可继续
-- 流式返回 (SSE)：AI 回答逐 token 渲染，体感与 ChatGPT 一致
+- 流式返回 (SSE)：AI 回答逐 token 渲染，体感与 ChatGPT 一致；中途断网也能落库恢复
 - 懒猫微服 OIDC 一键登录：通过 `application.oidc_redirect_path` 自动接入懒猫账号体系
+- **应用内设置页**：API Base URL / 模型 / API Key 全部在右上角「⚙ 设置」里配置，支持「测试连通」按钮一键验证；安装时不需要先准备凭据
 - OpenAI 兼容的 LLM 接入：默认 DeepSeek，可改成 OpenAI / Moonshot / 自托管 vLLM
 - 单二进制部署：Vue 产物通过 `rust-embed` 打进二进制，运行时只需要一个 SQLite 文件目录
 
@@ -107,7 +108,7 @@ docker volume ls | grep ai-career   # 查看持久化卷
 
 ## 一键部署到懒猫微服
 
-仓库自带 `lazycat/lzc-manifest.template.yml` 与 `lazycat/lzc-deploy-params.yml`。
+仓库自带 `lazycat/lzc-manifest.template.yml`（`lzc-deploy-params.yml` 现在是空 stub —— 装好之后无需任何参数即可运行）。
 推荐用 [microlazy-apps/lazycat-ci](https://github.com/microlazy-apps/lazycat-ci) 工作流：
 
 ```yaml
@@ -123,7 +124,7 @@ jobs:
     secrets: inherit
 ```
 
-安装时填入 `LLM_API_KEY` 即可，OIDC、子域名、HTTPS 由懒猫微服自动接管。
+**安装无需输入任何参数**（OIDC、子域名、HTTPS 由懒猫微服自动接管）。第一次登录后到右上角「⚙ 设置」填入 LLM `API Base URL` / `模型` / `API Key`，点「测试连通」验证即可。所有配置写入 `/data/app.db`，重启 / 升级不丢。
 
 ## 数据存放
 
