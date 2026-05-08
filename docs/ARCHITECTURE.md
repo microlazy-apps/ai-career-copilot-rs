@@ -36,7 +36,8 @@ auth/
   session.rs       AuthUser extractor (cookie JWT or x-hc-user-id header)
 
 api/
-  auth.rs          /auth/oidc/login, /auth/oidc/callback, /auth/me, /auth/logout
+  auth.rs          /auth/oidc/{login,callback}, /auth/email/login,
+                   /auth/me (with `methods` advert), /auth/logout
   sessions.rs     /api/sessions CRUD
   messages.rs     /api/sessions/{id}/messages — SSE streaming chat
   resume.rs       /api/sessions/{id}/resume — structured resume JSON
@@ -77,6 +78,38 @@ The same `AuthUser` extractor also accepts the `x-hc-user-id` header that
 Lazycat injects on every request (when the box has done SSO at the proxy
 layer), so even if our cookie is missing, requests still resolve to a user
 identity.
+
+### Email login (non-Lazycat fallback)
+
+Outside Lazycat the `LAZYCAT_AUTH_OIDC_*` vars are absent, so OIDC is
+disabled. To keep the app usable in `docker compose` / `cargo run`
+deployments, `Config::from_env` flips on `email_login_enabled` whenever
+no OIDC is configured (override with `EMAIL_LOGIN=1/0`).
+
+The endpoint is intentionally minimal — issue MIC-5 explicitly framed
+this as "现阶段认证意义不大":
+
+```
+browser → POST /auth/email/login {email}
+         → format-validate + lowercase
+         → upsert users row with id = "email:<addr>"
+         → set ac_session JWT (same cookie as OIDC)
+         → 200 { ok: true, user }
+```
+
+There is **no password, no verification email, no rate limit**. The
+email is the identity. The `email:` prefix on the user id keeps the
+namespace disjoint from any future OIDC `sub` for the same address, so
+the two methods can coexist without merging accounts.
+
+`GET /auth/me` advertises which methods are live:
+
+```json
+{ "authenticated": false, "methods": { "oidc": true, "email": false } }
+```
+
+The frontend `LoginView` renders the Lazycat button, the email form, or
+both, based on this payload.
 
 ## Refresh-safe chat history
 

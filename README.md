@@ -68,8 +68,7 @@ cp .env.example .env       # SESSION_SECRET 必填；LLM_* 可留空，启动后
 cargo run -p ai-career-copilot
 ```
 
-打开 http://localhost:5173 ，点 **使用懒猫账号登录**。本地开发时如果没有真实的 OIDC，
-后端 `/auth/oidc/login` 会返回 503，可以临时把 `x-hc-user-id` 头加在浏览器扩展里用任意 user id 调试。
+打开 http://localhost:5173 。本地开发没有懒猫 OIDC 时，登录页会自动显示**邮箱登录**：输入任意邮箱即可作为身份进入（不发验证邮件、不验密码——纯做"现阶段认证意义不大"的弱认证）。也可以用浏览器扩展手动注入 `x-hc-user-id` 头任意调试。
 
 > **LLM 凭据怎么填都行**：`.env` 里的 `LLM_BASE_URL / LLM_API_KEY / LLM_MODEL` 只在数据库还是默认值时
 > 作为首次启动的"种子"写入 `app_settings` 表。一旦你在 UI 里改过设置，env 不再覆盖数据库里的值。
@@ -139,6 +138,28 @@ GitHub Actions 跑完后会自动产出 `.lpk`，附加到对应的 GitHub Relea
 
 > 首次提交（`bootstrap-app.yml`）需要先把截图放到 `lazycat/screenshots/` 下，
 > 文件名要与 `lazycat/appstore.yml` 的 `screenshots.pc` 对齐。
+
+## 登录方式
+
+| 部署形态 | 默认登录方式 | 说明 |
+| --- | --- | --- |
+| 懒猫微服 lpk | 懒猫 OIDC | 由 lpk manifest 的 `oidc_redirect_path` 自动接入；用户点 **使用懒猫账号登录** 即可 |
+| docker compose / 本地 `cargo run` | **邮箱登录**（默认开） | 没有 OIDC 时，登录页直接显示邮箱表单，输入任意邮箱即可进入 |
+
+**邮箱登录是"弱认证"**，对齐 issue MIC-5 里"现阶段认证意义不大"的判断：
+
+- 不发验证邮件、不要密码、不依赖任何外部服务
+- 邮箱地址（小写化后）即用户身份：`POST /auth/email/login {email}` → 在 `users` 表里以 `email:<addr>` 为主键 upsert，下发 30 天 `ac_session` JWT cookie
+- 前端登录页根据 `GET /auth/me` 返回的 `methods.{oidc,email}` 自动渲染对应入口；OIDC 与邮箱可同时启用，互不影响
+
+切换开关：
+
+| 场景 | 推荐做法 |
+| --- | --- |
+| 懒猫 lpk 安装 | 不用动；OIDC 起来后邮箱登录默认关闭 |
+| docker compose 自托管 | 不用动；没 OIDC 时邮箱登录默认开 |
+| 既要 OIDC 又要邮箱兜底 | `EMAIL_LOGIN=1` 同时打开 |
+| 强制只允许 OIDC | `EMAIL_LOGIN=0`（OIDC 没起来时会变成"无法登录"，慎用） |
 
 ## 配置
 

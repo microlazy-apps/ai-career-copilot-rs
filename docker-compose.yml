@@ -51,6 +51,12 @@ services:
       LAZYCAT_AUTH_OIDC_AUTH_URI: ${LAZYCAT_AUTH_OIDC_AUTH_URI:-}
       LAZYCAT_AUTH_OIDC_TOKEN_URI: ${LAZYCAT_AUTH_OIDC_TOKEN_URI:-}
       LAZYCAT_AUTH_OIDC_USERINFO_URI: ${LAZYCAT_AUTH_OIDC_USERINFO_URI:-}
+
+      # --- Email login fallback (no password, no verification email)
+      # Defaults to ON when no Lazycat OIDC vars above are set, OFF
+      # otherwise. Set explicitly to 1/0 to force the behavior; e.g.
+      # set EMAIL_LOGIN=1 to expose it side-by-side with OIDC.
+      EMAIL_LOGIN: ${EMAIL_LOGIN:-}
     volumes:
       - app-data:/data
     healthcheck:
