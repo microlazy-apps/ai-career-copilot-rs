@@ -3,6 +3,10 @@
 //! Works with DeepSeek, OpenAI, Moonshot, vLLM gateways — anything that
 //! implements `/v1/chat/completions` with `stream: true` and SSE
 //! `data: {...}` lines.
+//!
+//! Credentials are not held by the client — they are read from SQLite at
+//! call time and passed in via [`LlmCallConfig`] so the user can change the
+//! provider from the in-app Settings page without restarting.
 
 use futures_util::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -22,45 +26,51 @@ pub enum StreamChunk {
 }
 
 #[derive(Debug, Clone)]
+pub struct LlmCallConfig {
+    pub base_url: String,
+    pub api_key: String,
+    pub model: String,
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct OpenAiClient {
-    base_url: String,
-    api_key: String,
     http: reqwest::Client,
 }
 
 impl OpenAiClient {
-    pub fn new(base_url: String, api_key: String) -> Self {
+    pub fn new() -> Self {
         Self {
-            base_url,
-            api_key,
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .user_agent("ai-career-copilot/0.1")
+                .build()
+                .expect("reqwest client"),
         }
     }
 
     pub async fn chat_stream(
         &self,
-        model: &str,
+        cfg: LlmCallConfig,
         messages: Vec<ChatMessage>,
     ) -> AppResult<impl Stream<Item = AppResult<StreamChunk>> + Send + 'static> {
-        if self.api_key.is_empty() {
+        if cfg.api_key.trim().is_empty() {
             return Err(AppError::Llm(
-                "LLM_API_KEY 未配置，请在懒猫微服「应用设置」里填入".into(),
+                "尚未配置 LLM API Key，请在右上角「设置」里填入。".into(),
             ));
         }
 
         let body = serde_json::json!({
-            "model": model,
+            "model": cfg.model,
             "messages": messages,
             "stream": true,
             "temperature": 0.6,
         });
 
-        let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
+        let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
 
         let resp = self
             .http
             .post(&url)
-            .bearer_auth(&self.api_key)
+            .bearer_auth(&cfg.api_key)
             .json(&body)
             .send()
             .await
@@ -73,8 +83,51 @@ impl OpenAiClient {
         }
 
         let byte_stream = resp.bytes_stream();
-        let stream = parse_sse_stream(byte_stream);
-        Ok(stream)
+        Ok(parse_sse_stream(byte_stream))
+    }
+
+    /// Non-streaming probe used by the Settings page "Test connection" button.
+    /// Sends a 1-token request and returns the raw assistant content.
+    pub async fn chat_probe(&self, cfg: &LlmCallConfig) -> AppResult<String> {
+        if cfg.api_key.trim().is_empty() {
+            return Err(AppError::Llm("API Key 不能为空".into()));
+        }
+
+        let body = serde_json::json!({
+            "model": cfg.model,
+            "messages": [{"role": "user", "content": "ping"}],
+            "stream": false,
+            "max_tokens": 16,
+        });
+
+        let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
+
+        let resp = self
+            .http
+            .post(&url)
+            .bearer_auth(&cfg.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Llm(format!("连接失败：{e}")))?;
+
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(AppError::Llm(format!("HTTP {status}: {text}")));
+        }
+
+        let v: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| AppError::Llm(format!("响应非 JSON：{e}: {text}")))?;
+        let content = v
+            .get("choices")
+            .and_then(|c| c.get(0))
+            .and_then(|c| c.get("message"))
+            .and_then(|m| m.get("content"))
+            .and_then(|s| s.as_str())
+            .unwrap_or("")
+            .to_string();
+        Ok(content)
     }
 }
 

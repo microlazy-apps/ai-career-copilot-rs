@@ -38,11 +38,9 @@ services:
       # `stable_secret` keeps the JWT signing key consistent across restarts so
       # session cookies survive `lzc-cli redeploy` cycles.
       - SESSION_SECRET={{stable_secret "SESSION_SECRET"}}
-      # User-supplied LLM credentials (deploy params). Empty by default —
-      # the user fills these in at install time via the Lazycat appstore UI.
-      - LLM_BASE_URL={{ .U.LLM_BASE_URL | default "https://api.deepseek.com/v1" }}
-      - LLM_API_KEY={{ .U.LLM_API_KEY | default "" }}
-      - LLM_MODEL={{ .U.LLM_MODEL | default "deepseek-chat" }}
+      # NOTE: LLM credentials (base URL / API key / model) are configured from
+      # inside the running app — see the in-app Settings page. They are
+      # persisted to /data/app.db and survive redeploys.
     binds:
       - /lzcapp/var/data:/data
     healthcheck:

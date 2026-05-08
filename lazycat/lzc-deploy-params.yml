@@ -1,37 +1,6 @@
-# Optional deploy parameters surfaced in the Lazycat appstore install UI.
-# Users fill these in at install time; templates above resolve them via
-# `{{ .U.NAME | default "..." }}`.
-
-LLM_BASE_URL:
-  zh: LLM 兼容 API 的 base URL
-  zh_CN: LLM 兼容 API 的 base URL
-  en: OpenAI-compatible API base URL
-  default: https://api.deepseek.com/v1
-  required: false
-  description:
-    zh: 兼容 OpenAI /v1/chat/completions 接口的服务地址，默认 DeepSeek。
-    zh_CN: 兼容 OpenAI /v1/chat/completions 接口的服务地址，默认 DeepSeek。
-    en: OpenAI-compatible chat completions endpoint. Defaults to DeepSeek.
-
-LLM_API_KEY:
-  zh: LLM API Key
-  zh_CN: LLM API Key
-  en: LLM API key
-  default: ""
-  required: true
-  secret: true
-  description:
-    zh: 在 DeepSeek / OpenAI / Moonshot 等服务申请的 API Key。
-    zh_CN: 在 DeepSeek / OpenAI / Moonshot 等服务申请的 API Key。
-    en: API key issued by DeepSeek / OpenAI / Moonshot / etc.
-
-LLM_MODEL:
-  zh: LLM 模型名
-  zh_CN: LLM 模型名
-  en: LLM model name
-  default: deepseek-chat
-  required: false
-  description:
-    zh: 默认 deepseek-chat。改成 gpt-4o-mini 等需要换 base URL。
-    zh_CN: 默认 deepseek-chat。改成 gpt-4o-mini 等需要换 base URL。
-    en: Defaults to deepseek-chat. Adjust together with LLM_BASE_URL.
+# No deploy parameters required.
+#
+# All app configuration (LLM base URL / API key / model) is set from the
+# in-app Settings page after first login. This file is kept as a stub so
+# the lazycat-ci pipeline can still reference it without errors.
+{}

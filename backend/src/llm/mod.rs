@@ -1,6 +1,6 @@
 pub mod openai;
 
-pub use openai::{ChatMessage, OpenAiClient, StreamChunk};
+pub use openai::{ChatMessage, LlmCallConfig, OpenAiClient, StreamChunk};
 
 pub const SYSTEM_PROMPT: &str = r#"你是「AI 求职助手」，一名专业的中文求职辅导专家。你的目标是帮助用户：
 

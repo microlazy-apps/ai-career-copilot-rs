@@ -3,9 +3,11 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useChatStore } from '../stores/chat'
+import { api } from '../api'
 import Sidebar from '../components/Sidebar.vue'
 import MessageList from '../components/MessageList.vue'
 import Composer from '../components/Composer.vue'
+import SettingsModal from '../components/SettingsModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -13,6 +15,17 @@ const auth = useAuthStore()
 const chat = useChatStore()
 
 const messagesEl = ref<HTMLDivElement | null>(null)
+const settingsOpen = ref(false)
+const llmConfigured = ref<boolean | null>(null)
+
+async function refreshLlmStatus() {
+  try {
+    const s = await api.getSettings()
+    llmConfigured.value = s.llm_configured
+  } catch (_) {
+    llmConfigured.value = null
+  }
+}
 
 const activeSession = computed(() =>
   chat.sessions.find((s) => s.id === chat.activeId) || null,
@@ -24,7 +37,7 @@ async function bootstrap() {
     router.replace('/login')
     return
   }
-  await chat.loadSessions()
+  await Promise.all([chat.loadSessions(), refreshLlmStatus()])
 
   const targetId = (route.params.id as string) || ''
   if (targetId) {
@@ -139,8 +152,18 @@ onMounted(bootstrap)
         />
         <div v-else class="title-input" style="opacity: 0.5">未选择对话</div>
 
-        <div v-if="chat.error" style="color: var(--danger); font-size: 12px">{{ chat.error }}</div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div v-if="chat.error" style="color: var(--danger); font-size: 12px; max-width: 360px; text-align: right">
+            {{ chat.error }}
+          </div>
+          <button class="header-btn" @click="settingsOpen = true" title="设置">⚙ 设置</button>
+        </div>
       </header>
+
+      <div v-if="llmConfigured === false" class="setup-banner">
+        <span>⚠ 还没有配置 LLM API Key — AI 回答暂时无法生成。</span>
+        <button class="header-btn" @click="settingsOpen = true">前往设置</button>
+      </div>
 
       <div class="messages" ref="messagesEl">
         <div class="center" v-if="chat.messages.length || chat.activeId">
@@ -165,5 +188,28 @@ onMounted(bootstrap)
 
       <Composer :disabled="chat.streaming" @send="onSend" />
     </main>
+
+    <SettingsModal :open="settingsOpen" @close="settingsOpen = false" @saved="refreshLlmStatus" />
   </div>
 </template>
+
+<style scoped>
+.header-btn {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+.header-btn:hover { background: var(--panel-2); border-color: var(--accent); }
+
+.setup-banner {
+  background: rgba(248, 113, 113, 0.08);
+  border-bottom: 1px solid rgba(248, 113, 113, 0.25);
+  color: #ffd1d1;
+  padding: 10px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13px;
+}
+</style>

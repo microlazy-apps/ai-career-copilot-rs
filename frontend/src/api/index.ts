@@ -32,6 +32,21 @@ export interface Message {
   created_at: string
 }
 
+export interface AppSettings {
+  llm_base_url: string
+  llm_model: string
+  llm_api_key_hint: string
+  llm_configured: boolean
+  updated_at: string
+}
+
+export interface TestLlmResponse {
+  ok: boolean
+  model: string
+  base_url: string
+  reply: string
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
@@ -84,6 +99,22 @@ export const api = {
 
   async listMessages(sessionId: string): Promise<Message[]> {
     return request(`/api/sessions/${sessionId}/messages`)
+  },
+
+  async getSettings(): Promise<AppSettings> {
+    return request('/api/settings')
+  },
+
+  async updateSettings(payload: Partial<{
+    llm_base_url: string
+    llm_model: string
+    llm_api_key: string
+  }>): Promise<AppSettings> {
+    return request('/api/settings', { method: 'PUT', body: JSON.stringify(payload) })
+  },
+
+  async testLlm(): Promise<TestLlmResponse> {
+    return request('/api/settings/test', { method: 'POST' })
   },
 
   /**

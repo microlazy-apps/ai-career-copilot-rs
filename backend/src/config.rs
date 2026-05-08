@@ -6,17 +6,20 @@ use std::env;
 /// vars at install time when `application.oidc_redirect_path` is set
 /// in the lpk manifest, so the app does not need user-supplied OIDC
 /// credentials.
+///
+/// LLM credentials are *not* part of this struct — those are stored in
+/// SQLite (`app_settings`) and edited from the in-app Settings page.
+/// `EnvDefaults` only carries optional seed values that pre-populate the
+/// settings row on first boot for convenience.
 #[derive(Debug, Clone)]
 pub struct Config {
     pub bind_addr: String,
     pub data_dir: String,
     pub database_url: String,
     pub session_secret: String,
-
     pub oidc: Option<OidcConfig>,
     pub app_domain: String,
-
-    pub llm: LlmConfig,
+    pub env_defaults: EnvDefaults,
 }
 
 #[derive(Debug, Clone)]
@@ -29,12 +32,11 @@ pub struct OidcConfig {
     pub redirect_url: String,
 }
 
-#[derive(Debug, Clone)]
-pub struct LlmConfig {
-    /// OpenAI-compatible base URL, e.g. `https://api.deepseek.com/v1`.
-    pub base_url: String,
-    pub api_key: String,
-    pub model: String,
+#[derive(Debug, Clone, Default)]
+pub struct EnvDefaults {
+    pub llm_base_url: Option<String>,
+    pub llm_api_key: Option<String>,
+    pub llm_model: Option<String>,
 }
 
 impl Config {
@@ -56,11 +58,10 @@ impl Config {
 
         let oidc = oidc_from_env(&app_domain);
 
-        let llm = LlmConfig {
-            base_url: env::var("LLM_BASE_URL")
-                .unwrap_or_else(|_| "https://api.deepseek.com/v1".into()),
-            api_key: env::var("LLM_API_KEY").unwrap_or_default(),
-            model: env::var("LLM_MODEL").unwrap_or_else(|_| "deepseek-chat".into()),
+        let env_defaults = EnvDefaults {
+            llm_base_url: env::var("LLM_BASE_URL").ok().filter(|s| !s.is_empty()),
+            llm_api_key: env::var("LLM_API_KEY").ok().filter(|s| !s.is_empty()),
+            llm_model: env::var("LLM_MODEL").ok().filter(|s| !s.is_empty()),
         };
 
         Ok(Self {
@@ -70,7 +71,7 @@ impl Config {
             session_secret,
             oidc,
             app_domain,
-            llm,
+            env_defaults,
         })
     }
 }

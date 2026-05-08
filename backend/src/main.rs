@@ -16,6 +16,7 @@ mod embed;
 mod error;
 mod llm;
 mod models;
+mod settings;
 
 use auth::oidc::OidcClient;
 use config::Config;
@@ -49,11 +50,10 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let db = db::connect(&cfg.database_url).await?;
+    settings::seed_from_env(&db, &cfg.env_defaults).await?;
+
     let oidc = cfg.oidc.clone().map(|c| Arc::new(OidcClient::new(c)));
-    let llm = Arc::new(OpenAiClient::new(
-        cfg.llm.base_url.clone(),
-        cfg.llm.api_key.clone(),
-    ));
+    let llm = Arc::new(OpenAiClient::new());
 
     let state = AppState {
         cfg: Arc::new(cfg.clone()),
@@ -77,7 +77,12 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/sessions/{id}/resume",
             get(api::resume::get).put(api::resume::upsert),
-        );
+        )
+        .route(
+            "/settings",
+            get(api::settings::get).put(api::settings::update),
+        )
+        .route("/settings/test", post(api::settings::test_llm));
 
     let auth_routes = Router::new()
         .route("/oidc/login", get(api::auth::login))
