@@ -58,16 +58,8 @@ async function loginWithEmail() {
         使用懒猫账号登录
       </button>
 
-      <div
-        v-if="showOidc && showEmail"
-        class="login-divider"
-        role="separator"
-      >
-        或
-      </div>
-
       <form
-        v-if="showEmail"
+        v-else-if="showEmail"
         class="login-email"
         @submit.prevent="loginWithEmail"
       >
@@ -92,10 +84,7 @@ async function loginWithEmail() {
         <p class="login-hint">现阶段不发送验证邮件 — 邮箱即身份。</p>
       </form>
 
-      <p
-        v-if="!showOidc && !showEmail"
-        class="login-error"
-      >
+      <p v-else class="login-error">
         当前部署既未配置懒猫 OIDC，也未启用邮箱登录。请检查后端配置。
       </p>
     </div>

@@ -146,25 +146,19 @@ GitHub Actions 跑完后会自动产出 `.lpk`，附加到对应的 GitHub Relea
 
 ## 登录方式
 
-| 部署形态 | 默认登录方式 | 说明 |
+登录页根据后端环境二选一渲染，无需任何额外开关：
+
+| 部署形态 | 登录方式 | 说明 |
 | --- | --- | --- |
-| 懒猫微服 lpk | 懒猫 OIDC | 由 lpk manifest 的 `oidc_redirect_path` 自动接入；用户点 **使用懒猫账号登录** 即可 |
-| docker compose / 本地 `cargo run` | **邮箱登录**（默认开） | 没有 OIDC 时，登录页直接显示邮箱表单，输入任意邮箱即可进入 |
+| 懒猫微服 lpk | 懒猫 OIDC | lpk 注入 `LAZYCAT_AUTH_OIDC_*`，用户点 **使用懒猫账号登录** 即可 |
+| docker compose / 本地 `cargo run` | 邮箱登录 | OIDC 环境变量缺失时自动启用，输入任意邮箱即可进入 |
 
 **邮箱登录是"弱认证"**，对齐 issue MIC-5 里"现阶段认证意义不大"的判断：
 
 - 不发验证邮件、不要密码、不依赖任何外部服务
 - 邮箱地址（小写化后）即用户身份：`POST /auth/email/login {email}` → 在 `users` 表里以 `email:<addr>` 为主键 upsert，下发 30 天 `ac_session` JWT cookie
-- 前端登录页根据 `GET /auth/me` 返回的 `methods.{oidc,email}` 自动渲染对应入口；OIDC 与邮箱可同时启用，互不影响
-
-切换开关：
-
-| 场景 | 推荐做法 |
-| --- | --- |
-| 懒猫 lpk 安装 | 不用动；OIDC 起来后邮箱登录默认关闭 |
-| docker compose 自托管 | 不用动；没 OIDC 时邮箱登录默认开 |
-| 既要 OIDC 又要邮箱兜底 | `EMAIL_LOGIN=1` 同时打开 |
-| 强制只允许 OIDC | `EMAIL_LOGIN=0`（OIDC 没起来时会变成"无法登录"，慎用） |
+- 前端登录页根据 `GET /auth/me` 返回的 `methods.{oidc,email}` 自动渲染对应入口
+- 想从邮箱兜底切回 OIDC，只要把 `LAZYCAT_AUTH_OIDC_*` 配上重启即可，不需要改任何应用配置
 
 ## 配置
 

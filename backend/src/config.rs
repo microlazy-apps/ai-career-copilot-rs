@@ -61,13 +61,10 @@ impl Config {
 
         let oidc = oidc_from_env(&app_domain);
 
-        // Email login: opt-in via EMAIL_LOGIN; defaults to ON when no
-        // OIDC is configured so non-Lazycat deployments still have a
-        // way in. Set EMAIL_LOGIN=0 to force-disable.
-        let email_login_enabled = match env::var("EMAIL_LOGIN").ok().as_deref() {
-            Some(v) => parse_bool(v).unwrap_or(oidc.is_none()),
-            None => oidc.is_none(),
-        };
+        // Email login is the fallback when Lazycat OIDC is absent: lpk
+        // installs always have OIDC, so they never see it; everyone
+        // else (docker compose / cargo run) gets it automatically.
+        let email_login_enabled = oidc.is_none();
 
         let env_defaults = EnvDefaults {
             llm_base_url: env::var("LLM_BASE_URL").ok().filter(|s| !s.is_empty()),
@@ -85,14 +82,6 @@ impl Config {
             app_domain,
             env_defaults,
         })
-    }
-}
-
-fn parse_bool(v: &str) -> Option<bool> {
-    match v.trim().to_ascii_lowercase().as_str() {
-        "1" | "true" | "yes" | "on" => Some(true),
-        "0" | "false" | "no" | "off" => Some(false),
-        _ => None,
     }
 }
 

@@ -89,9 +89,9 @@ identity.
 ### Email login (non-Lazycat fallback)
 
 Outside Lazycat the `LAZYCAT_AUTH_OIDC_*` vars are absent, so OIDC is
-disabled. To keep the app usable in `docker compose` / `cargo run`
-deployments, `Config::from_env` flips on `email_login_enabled` whenever
-no OIDC is configured (override with `EMAIL_LOGIN=1/0`).
+disabled. `Config::from_env` flips `email_login_enabled = oidc.is_none()`
+— there is **no separate flag**: the two methods are mutually exclusive
+and follow OIDC presence.
 
 The endpoint is intentionally minimal — issue MIC-5 explicitly framed
 this as "现阶段认证意义不大":
@@ -107,16 +107,16 @@ browser → POST /auth/email/login {email}
 There is **no password, no verification email, no rate limit**. The
 email is the identity. The `email:` prefix on the user id keeps the
 namespace disjoint from any future OIDC `sub` for the same address, so
-the two methods can coexist without merging accounts.
+account collisions are impossible if a deployment later switches to OIDC.
 
-`GET /auth/me` advertises which methods are live:
+`GET /auth/me` advertises exactly one active method (OIDC xor email):
 
 ```json
 { "authenticated": false, "methods": { "oidc": true, "email": false } }
 ```
 
-The frontend `LoginView` renders the Lazycat button, the email form, or
-both, based on this payload.
+The frontend `LoginView` reads this payload and renders the matching
+entry — Lazycat button when `oidc` is true, email form otherwise.
 
 ## Refresh-safe chat history
 
