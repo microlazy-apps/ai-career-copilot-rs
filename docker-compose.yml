@@ -45,7 +45,8 @@ services:
       # --- Public domain used to build OIDC redirect URLs (host[:port])
       APP_DOMAIN: ${APP_DOMAIN:-localhost:8080}
 
-      # --- Optional Lazycat / generic OIDC (leave empty for header-based dev)
+      # --- Optional Lazycat / generic OIDC (leave empty for the
+      # password-less email login fallback; see README#登录方式).
       LAZYCAT_AUTH_OIDC_CLIENT_ID: ${LAZYCAT_AUTH_OIDC_CLIENT_ID:-}
       LAZYCAT_AUTH_OIDC_CLIENT_SECRET: ${LAZYCAT_AUTH_OIDC_CLIENT_SECRET:-}
       LAZYCAT_AUTH_OIDC_AUTH_URI: ${LAZYCAT_AUTH_OIDC_AUTH_URI:-}

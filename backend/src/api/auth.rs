@@ -12,10 +12,23 @@ use crate::AppState;
 
 const STATE_COOKIE: &str = "ac_oidc_state";
 
-pub async fn me(user: Option<AuthUser>) -> Json<serde_json::Value> {
+pub async fn me(
+    State(state): State<AppState>,
+    user: Option<AuthUser>,
+) -> Json<serde_json::Value> {
+    // The active method is whichever the deployment has wired up: OIDC
+    // when its env vars are present, otherwise the password-less email
+    // fallback. There is intentionally no flag — they are mutually
+    // exclusive by construction.
+    let oidc_available = state.oidc.is_some();
+    let methods = json!({
+        "oidc": oidc_available,
+        "email": !oidc_available,
+    });
     match user {
         Some(u) => Json(json!({
             "authenticated": true,
+            "methods": methods,
             "user": {
                 "id": u.id,
                 "email": u.email,
@@ -23,7 +36,10 @@ pub async fn me(user: Option<AuthUser>) -> Json<serde_json::Value> {
                 "avatar_url": u.avatar_url,
             }
         })),
-        None => Json(json!({ "authenticated": false })),
+        None => Json(json!({
+            "authenticated": false,
+            "methods": methods,
+        })),
     }
 }
 
@@ -122,6 +138,109 @@ pub async fn logout(jar: CookieJar) -> Response {
         .max_age(time::Duration::ZERO)
         .build();
     (jar.add(cleared), Redirect::to("/login")).into_response()
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EmailLoginPayload {
+    pub email: String,
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+/// Password-less email login for non-Lazycat deployments.
+///
+/// "现阶段认证意义不大" — we do format validation only, no email
+/// verification. The submitted address becomes the stable user
+/// identity (`email:<lowercased>`), distinct from any OIDC `sub`,
+/// and is upserted into the same `users` table as OIDC accounts.
+///
+/// Email login and OIDC are mutually exclusive: when the deployment
+/// has OIDC env vars wired in we refuse this endpoint so callers are
+/// pushed through the proper SSO flow.
+pub async fn email_login(
+    State(state): State<AppState>,
+    jar: CookieJar,
+    Json(payload): Json<EmailLoginPayload>,
+) -> AppResult<Response> {
+    if state.oidc.is_some() {
+        return Err(AppError::EmailLoginDisabled);
+    }
+
+    let email = normalize_email(&payload.email)
+        .ok_or_else(|| AppError::BadRequest("invalid email address".into()))?;
+
+    let user_id = format!("email:{email}");
+    let display_name = payload
+        .name
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .or_else(|| email.split('@').next().map(str::to_string));
+
+    sqlx::query(
+        r#"
+        INSERT INTO users (id, email, name, avatar_url)
+        VALUES (?1, ?2, ?3, NULL)
+        ON CONFLICT(id) DO UPDATE SET
+            email = excluded.email,
+            name = COALESCE(excluded.name, users.name),
+            updated_at = datetime('now')
+        "#,
+    )
+    .bind(&user_id)
+    .bind(&email)
+    .bind(&display_name)
+    .execute(&state.db)
+    .await?;
+
+    let session = SessionToken::new(
+        user_id.clone(),
+        Some(email.clone()),
+        display_name.clone(),
+        None,
+    );
+    let session_token = session
+        .encode(&state.cfg.session_secret)
+        .map_err(AppError::Other)?;
+
+    let session_cookie = Cookie::build((SESSION_COOKIE, session_token))
+        .path("/")
+        .http_only(true)
+        .same_site(SameSite::Lax)
+        .max_age(time::Duration::days(30))
+        .build();
+
+    let body = Json(json!({
+        "ok": true,
+        "user": {
+            "id": user_id,
+            "email": email,
+            "name": display_name,
+            "avatar_url": null,
+        }
+    }));
+    Ok((jar.add(session_cookie), body).into_response())
+}
+
+fn normalize_email(raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.len() < 3 || trimmed.len() > 254 {
+        return None;
+    }
+    let lower = trimmed.to_ascii_lowercase();
+    let (local, domain) = lower.split_once('@')?;
+    if local.is_empty() || domain.is_empty() || !domain.contains('.') {
+        return None;
+    }
+    if domain.starts_with('.') || domain.ends_with('.') || domain.contains("..") {
+        return None;
+    }
+    let valid = lower.chars().all(|c| {
+        c.is_ascii_alphanumeric()
+            || matches!(c, '@' | '.' | '_' | '-' | '+')
+    });
+    valid.then_some(lower)
 }
 
 async fn upsert_user(

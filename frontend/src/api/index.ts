@@ -5,6 +5,17 @@ export interface User {
   avatar_url: string | null
 }
 
+export interface AuthMethods {
+  oidc: boolean
+  email: boolean
+}
+
+export interface MeResponse {
+  authenticated: boolean
+  methods: AuthMethods
+  user?: User
+}
+
 export interface SessionView {
   id: string
   user_id: string
@@ -86,12 +97,19 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  async me(): Promise<{ authenticated: boolean; user?: User }> {
+  async me(): Promise<MeResponse> {
     return request('/auth/me')
   },
 
   loginUrl(): string {
     return '/auth/oidc/login'
+  },
+
+  async emailLogin(email: string, name?: string): Promise<{ ok: true; user: User }> {
+    return request('/auth/email/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, ...(name ? { name } : {}) }),
+    })
   },
 
   async logout(): Promise<void> {

@@ -5,7 +5,8 @@ use std::env;
 /// Lazycat injects the `LAZYCAT_AUTH_OIDC_*` and `LAZYCAT_APP_DOMAIN`
 /// vars at install time when `application.oidc_redirect_path` is set
 /// in the lpk manifest, so the app does not need user-supplied OIDC
-/// credentials.
+/// credentials. When OIDC is absent the app exposes the password-less
+/// email login fallback automatically — there is no separate flag.
 ///
 /// LLM credentials are *not* part of this struct — those are stored in
 /// SQLite (`app_settings`) and edited from the in-app Settings page.

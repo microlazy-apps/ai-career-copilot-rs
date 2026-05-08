@@ -20,6 +20,9 @@ pub enum AppError {
     #[error("oidc not configured")]
     OidcNotConfigured,
 
+    #[error("email login not enabled")]
+    EmailLoginDisabled,
+
     #[error("upstream LLM error: {0}")]
     Llm(String),
 
@@ -38,6 +41,7 @@ impl IntoResponse for AppError {
             AppError::NotFound => (StatusCode::NOT_FOUND, self.to_string()),
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             AppError::OidcNotConfigured => (StatusCode::SERVICE_UNAVAILABLE, self.to_string()),
+            AppError::EmailLoginDisabled => (StatusCode::SERVICE_UNAVAILABLE, self.to_string()),
             AppError::Llm(_) => (StatusCode::BAD_GATEWAY, self.to_string()),
             AppError::Sqlx(e) => {
                 tracing::error!(error = %e, "sqlx error");

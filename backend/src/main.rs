@@ -101,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
     let auth_routes = Router::new()
         .route("/oidc/login", get(api::auth::login))
         .route("/oidc/callback", get(api::auth::callback))
+        .route("/email/login", post(api::auth::email_login))
         .route("/me", get(api::auth::me))
         .route("/logout", post(api::auth::logout));
 

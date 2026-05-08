@@ -36,6 +36,12 @@ auth/
   session.rs       AuthUser extractor (cookie JWT or x-hc-user-id header)
 
 api/
+  auth.rs          /auth/oidc/{login,callback}, /auth/email/login,
+                   /auth/me (with `methods` advert), /auth/logout
+  sessions.rs     /api/sessions CRUD
+  messages.rs     /api/sessions/{id}/messages — SSE streaming chat
+  resume.rs       /api/sessions/{id}/resume — structured resume JSON
+  settings.rs     /api/settings (GET/PUT) + /api/settings/test — in-app LLM config
   auth.rs          /auth/oidc/login, /auth/oidc/callback, /auth/me, /auth/logout
   sessions.rs      /api/sessions CRUD
   messages.rs      /api/sessions/{id}/messages — SSE streaming chat
@@ -79,6 +85,38 @@ The same `AuthUser` extractor also accepts the `x-hc-user-id` header that
 Lazycat injects on every request (when the box has done SSO at the proxy
 layer), so even if our cookie is missing, requests still resolve to a user
 identity.
+
+### Email login (non-Lazycat fallback)
+
+Outside Lazycat the `LAZYCAT_AUTH_OIDC_*` vars are absent, so OIDC is
+disabled. The app has **no separate switch** for the email fallback —
+`/auth/email/login` simply checks `state.oidc.is_none()` at request
+time and the SPA renders the matching entry from `/auth/me`.
+
+The endpoint is intentionally minimal — issue MIC-5 explicitly framed
+this as "现阶段认证意义不大":
+
+```
+browser → POST /auth/email/login {email}
+         → format-validate + lowercase
+         → upsert users row with id = "email:<addr>"
+         → set ac_session JWT (same cookie as OIDC)
+         → 200 { ok: true, user }
+```
+
+There is **no password, no verification email, no rate limit**. The
+email is the identity. The `email:` prefix on the user id keeps the
+namespace disjoint from any future OIDC `sub` for the same address, so
+account collisions are impossible if a deployment later switches to OIDC.
+
+`GET /auth/me` advertises exactly one active method (OIDC xor email):
+
+```json
+{ "authenticated": false, "methods": { "oidc": true, "email": false } }
+```
+
+The frontend `LoginView` reads this payload and renders the matching
+entry — Lazycat button when `oidc` is true, email form otherwise.
 
 ## Refresh-safe chat history
 
