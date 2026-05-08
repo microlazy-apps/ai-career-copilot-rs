@@ -42,11 +42,18 @@ api/
   messages.rs     /api/sessions/{id}/messages — SSE streaming chat
   resume.rs       /api/sessions/{id}/resume — structured resume JSON
   settings.rs     /api/settings (GET/PUT) + /api/settings/test — in-app LLM config
+  auth.rs          /auth/oidc/login, /auth/oidc/callback, /auth/me, /auth/logout
+  sessions.rs      /api/sessions CRUD
+  messages.rs      /api/sessions/{id}/messages — SSE streaming chat
+  resume.rs        /api/sessions/{id}/resume — structured resume JSON
+  attachments.rs   /api/sessions/{id}/attachments — multipart upload + manage
+  settings.rs      /api/settings (GET/PUT) + /api/settings/test — in-app LLM config
 
 llm/
   mod.rs           system prompt + re-exports
   openai.rs        OpenAI-compatible streaming chat client
 
+extract.rs         PDF / DOCX / TXT / Markdown text extraction (capped at 32k chars)
 models.rs          sqlx::FromRow structs for users / sessions / messages / resume_contents
 embed.rs           rust-embed of frontend/dist + SPA fallback
 error.rs           AppError → IntoResponse
@@ -167,6 +174,48 @@ CREATE TABLE app_settings (
 ### 前端
 
 `frontend/src/components/SettingsModal.vue` 是入口。Provider 预设 / 状态徽章 / 卡片分组 / 测试连通 / dirty-aware 保存按钮等设计细节，详见 [README#配置](../README.md#配置)。
+
+## 简历附件 (resume_attachments)
+
+用户可以为每个会话上传至多 5 份简历附件（PDF / DOCX / TXT / Markdown，单文件 ≤ 10 MB）。后端把原始字节落到 `<DATA_DIR>/uploads/<session_id>/<id>.bin`，把抽取出来的纯文本存进 SQLite。每轮 chat 之前都会读这张表，把所有附件文本拼成一条 system message 注入到 prompt 头部 — 不需要做向量检索，对单人/家庭场景是性价比最高的方案。
+
+```sql
+-- migrations/0004_resume_attachments.sql
+CREATE TABLE resume_attachments (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    storage_path TEXT NOT NULL,
+    extracted_text TEXT NOT NULL DEFAULT '',
+    extract_status TEXT NOT NULL CHECK (extract_status IN ('ok','partial','failed')),
+    extract_error TEXT,
+    sha256 TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+```
+
+### Endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `POST   /api/sessions/{id}/attachments` | multipart upload，字段名 `file` |
+| `GET    /api/sessions/{id}/attachments` | 列出附件元信息（不含正文） |
+| `GET    /api/sessions/{id}/attachments/{aid}` | 元信息 + 1000 字预览 |
+| `GET    /api/sessions/{id}/attachments/{aid}/download` | 下载原始文件 |
+| `DELETE /api/sessions/{id}/attachments/{aid}` | 删除（同时清理磁盘文件） |
+
+### 抽取策略 (`extract.rs`)
+
+- **TXT / MD**：UTF-8 → GBK fallback。
+- **PDF**：`pdf-extract` crate；包了 `catch_unwind` 防御被异常 PDF 触发 panic（解析失败会落库 `extract_status='failed'`，UI 显示红色徽章但不会丢文件）。
+- **DOCX**：解 zip → 读 `word/document.xml` → quick-xml 仅保留 `<w:t>` 文本节点，按 `<w:p>` 加换行。
+- 统一规整化：去掉空白尾部、合并连续空行；超过 32000 字截断（`extract_status='partial'`）。
+
+### Prompt 注入 (`api/messages.rs::build_resume_context`)
+
+每轮 chat 时按上传时间排序拼接 `【附件 N】文件名 + 文本`，总预算 24000 字符。如果某份解析失败，仍然会把文件名写进 prompt 让 AI 知道用户上传了什么但需要追问。这条 system message 跟 JD system message 一起，在普通历史消息之前插入。
 
 ## Why one binary serves the frontend too
 

@@ -16,6 +16,7 @@
 - 持久化的会话历史：每条消息写入 SQLite，刷新或重启后从左侧侧边栏选择即可继续
 - 流式返回 (SSE)：AI 回答逐 token 渲染，体感与 ChatGPT 一致；中途断网也能落库恢复
 - 懒猫微服 OIDC 一键登录：通过 `application.oidc_redirect_path` 自动接入懒猫账号体系
+- **简历附件上传**：支持 PDF / DOCX / TXT / Markdown，每会话至多 5 份；服务端自动抽取文本，AI 在每轮对话中都把它当作权威事实来源（不需要向量检索/外部存储）
 - **应用内设置页**：API Base URL / 模型 / API Key 全部在右上角「⚙ 设置」里配置，支持「测试连通」按钮一键验证；安装时不需要先准备凭据
 - OpenAI 兼容的 LLM 接入：默认 DeepSeek，可改成 OpenAI / Moonshot / 自托管 vLLM
 - 单二进制部署：Vue 产物通过 `rust-embed` 打进二进制，运行时只需要一个 SQLite 文件目录
@@ -39,7 +40,11 @@
                 │                  │
                 │     ┌───── SQLite (WAL) at /data ─────┐│
                 │     │ users, sessions, messages,      ││
-                │     │ resume_contents                 ││
+                │     │ resume_contents,                ││
+                │     │ resume_attachments              ││
+                │     └─────────────────────────────────┘│
+                │     ┌── /data/uploads/<sid>/<id>.bin ─┐│
+                │     │ raw resume files (PDF/DOCX/...) ││
                 │     └─────────────────────────────────┘│
                 └──────────────────────────────────────┬─┘
                                                        │
@@ -188,6 +193,18 @@ GitHub Actions 跑完后会自动产出 `.lpk`，附加到对应的 GitHub Relea
 | 懒猫 lpk 安装 | env 全部不传，登录后到「⚙ 设置」填 |
 | docker compose 自托管 | env 全部不传，登录后到「⚙ 设置」填；或在 `.env` 里填一份方便首次启动 |
 | 本地 `cargo run` | 同上 |
+
+## 简历附件
+
+进入任一会话（或在新会话首屏点「📎 上传简历附件」），就会出现简历面板：
+
+- 支持的格式：**PDF / DOCX / TXT / Markdown**，单文件最大 **10 MB**，每个会话至多 **5 份**
+- 上传后服务端立刻抽取文本并落库，状态会显示为 ✅ 已抽取 N 字 / ⚠ 已截断（>32k 字符）/ ❌ 解析失败
+- 每轮对话都会把所有附件文本作为 system message 注入到 prompt（按上传时间排序，总预算 24k 字符）—— AI 回答里要"基于我的简历"时即刻可用，不需要复制粘贴
+- 解析失败的文件仍会保留原文件 + 文件名，方便你下载原件给 AI 转述，或重新上传一份纯文本副本
+- 文件以 `<DATA_DIR>/uploads/<session_id>/<id>.bin` 存盘，删除会话或附件时自动清理
+
+实现细节见 [docs/ARCHITECTURE.md → 简历附件](docs/ARCHITECTURE.md#简历附件-resume_attachments)。
 
 API（带 OIDC cookie 或 `x-hc-user-id` 头）：
 

@@ -58,6 +58,23 @@ export interface TestLlmResponse {
   reply: string
 }
 
+export interface AttachmentSummary {
+  id: string
+  session_id: string
+  filename: string
+  mime_type: string
+  size_bytes: number
+  kind: string
+  extract_status: 'ok' | 'partial' | 'failed'
+  extract_error: string | null
+  text_chars: number
+  created_at: string
+}
+
+export interface AttachmentDetail extends AttachmentSummary {
+  text_preview: string
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
@@ -133,6 +150,41 @@ export const api = {
 
   async testLlm(): Promise<TestLlmResponse> {
     return request('/api/settings/test', { method: 'POST' })
+  },
+
+  async listAttachments(sessionId: string): Promise<AttachmentSummary[]> {
+    return request(`/api/sessions/${sessionId}/attachments`)
+  },
+
+  async uploadAttachment(sessionId: string, file: File): Promise<AttachmentSummary> {
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch(`/api/sessions/${sessionId}/attachments`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    })
+    if (!res.ok) {
+      let msg = `upload failed: ${res.status}`
+      try {
+        const body = await res.json()
+        if (body?.error) msg = body.error
+      } catch (_) {}
+      throw new Error(msg)
+    }
+    return res.json()
+  },
+
+  async getAttachment(sessionId: string, id: string): Promise<AttachmentDetail> {
+    return request(`/api/sessions/${sessionId}/attachments/${id}`)
+  },
+
+  async deleteAttachment(sessionId: string, id: string): Promise<void> {
+    await request(`/api/sessions/${sessionId}/attachments/${id}`, { method: 'DELETE' })
+  },
+
+  attachmentDownloadUrl(sessionId: string, id: string): string {
+    return `/api/sessions/${sessionId}/attachments/${id}/download`
   },
 
   /**

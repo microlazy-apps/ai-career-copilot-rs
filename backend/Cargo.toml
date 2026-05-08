@@ -8,7 +8,7 @@ repository.workspace = true
 [dependencies]
 # Async runtime + HTTP
 tokio = { version = "1", features = ["full"] }
-axum = { version = "0.8", features = ["macros", "json", "query"] }
+axum = { version = "0.8", features = ["macros", "json", "query", "multipart"] }
 axum-extra = { version = "0.10", features = ["cookie"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-gzip"] }
@@ -55,3 +55,10 @@ mime_guess = "2"
 async-stream = "0.3"
 futures-util = "0.3"
 bytes = "1"
+
+# Resume attachment text extraction (PDF / DOCX / TXT / MD).
+pdf-extract = "0.10"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+quick-xml = "0.39"
+encoding_rs = "0.8"
+
