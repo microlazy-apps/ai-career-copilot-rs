@@ -1,0 +1,58 @@
+# Docker Compose for ai-career-copilot-rs
+#
+# Quick start:
+#   1. cp .env.example .env
+#   2. edit .env, fill in LLM_API_KEY (and SESSION_SECRET if you care)
+#   3. docker compose up -d --build
+#
+# The service builds the Rust backend + Vue frontend into a single image
+# (multi-stage build, see Dockerfile) and persists SQLite to a named volume.
+
+name: ai-career-copilot
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-career-copilot:latest
+    container_name: ai-career-copilot
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    environment:
+      # --- Server
+      BIND_ADDR: 0.0.0.0:8080
+      DATA_DIR: /data
+      TZ: ${TZ:-Asia/Shanghai}
+      RUST_LOG: ${RUST_LOG:-info}
+
+      # --- Session signing (required; generate with `openssl rand -hex 32`)
+      SESSION_SECRET: "${SESSION_SECRET:?set SESSION_SECRET in .env (use openssl rand -hex 32)}"
+
+      # --- LLM (OpenAI-compatible; default DeepSeek)
+      LLM_BASE_URL: "${LLM_BASE_URL:-https://api.deepseek.com/v1}"
+      LLM_API_KEY: "${LLM_API_KEY:?set LLM_API_KEY in .env}"
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+
+      # --- Public domain used to build OIDC redirect URLs (host[:port])
+      APP_DOMAIN: ${APP_DOMAIN:-localhost:8080}
+
+      # --- Optional Lazycat / generic OIDC (leave empty for header-based dev)
+      LAZYCAT_AUTH_OIDC_CLIENT_ID: ${LAZYCAT_AUTH_OIDC_CLIENT_ID:-}
+      LAZYCAT_AUTH_OIDC_CLIENT_SECRET: ${LAZYCAT_AUTH_OIDC_CLIENT_SECRET:-}
+      LAZYCAT_AUTH_OIDC_AUTH_URI: ${LAZYCAT_AUTH_OIDC_AUTH_URI:-}
+      LAZYCAT_AUTH_OIDC_TOKEN_URI: ${LAZYCAT_AUTH_OIDC_TOKEN_URI:-}
+      LAZYCAT_AUTH_OIDC_USERINFO_URI: ${LAZYCAT_AUTH_OIDC_USERINFO_URI:-}
+    volumes:
+      - app-data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "-T", "5", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  app-data:
+    driver: local

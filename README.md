@@ -70,6 +70,41 @@ cargo run -p ai-career-copilot
 打开 http://localhost:5173 ，点 **使用懒猫账号登录**。本地开发时如果没有真实的 OIDC，
 后端 `/auth/oidc/login` 会返回 503，可以临时把 `x-hc-user-id` 头加在浏览器扩展里用任意 user id 调试。
 
+## 一键部署 (Docker Compose)
+
+适合自托管在任意一台有 Docker 的机器上。镜像在本地构建（多阶段：Vue 产物 + Rust 静态二进制），SQLite 通过命名卷持久化，重启 / 升级不会丢数据。
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/microlazy-apps/ai-career-copilot-rs.git
+cd ai-career-copilot-rs
+
+# 2. 准备环境变量（至少填 LLM_API_KEY 和 SESSION_SECRET）
+cp .env.example .env
+sed -i "s/^SESSION_SECRET=.*/SESSION_SECRET=$(openssl rand -hex 32)/" .env
+$EDITOR .env   # 填入 LLM_API_KEY
+
+# 3. 启动（首次会构建镜像，5–10 分钟）
+docker compose up -d --build
+
+# 4. 验证
+curl -fsS http://localhost:${APP_PORT:-8080}/healthz   # => ok
+```
+
+打开 http://localhost:8080 即可使用。无 OIDC 凭证时，本地可通过浏览器扩展注入 `x-hc-user-id` 头进行调试，详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+
+常用命令：
+
+```bash
+docker compose logs -f app          # 跟踪日志
+docker compose restart app          # 重启
+docker compose down                 # 停止并移除容器（卷保留 → 数据不丢）
+docker compose down -v              # 停止并清理卷（数据会被删除）
+docker volume ls | grep ai-career   # 查看持久化卷
+```
+
+数据卷映射：`ai-career-copilot_app-data` → 容器内 `/data`，含 `app.db` 主库与 WAL 文件。
+
 ## 一键部署到懒猫微服
 
 仓库自带 `lazycat/lzc-manifest.template.yml` 与 `lazycat/lzc-deploy-params.yml`。
