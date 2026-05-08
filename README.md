@@ -64,12 +64,16 @@ pnpm dev
 
 # 2. 启后端 (默认监听 0.0.0.0:8080)
 cd ..
-cp .env.example .env       # 填入 LLM_API_KEY 等
+cp .env.example .env       # SESSION_SECRET 必填；LLM_* 可留空，启动后到「⚙ 设置」里填
 cargo run -p ai-career-copilot
 ```
 
 打开 http://localhost:5173 ，点 **使用懒猫账号登录**。本地开发时如果没有真实的 OIDC，
 后端 `/auth/oidc/login` 会返回 503，可以临时把 `x-hc-user-id` 头加在浏览器扩展里用任意 user id 调试。
+
+> **LLM 凭据怎么填都行**：`.env` 里的 `LLM_BASE_URL / LLM_API_KEY / LLM_MODEL` 只在数据库还是默认值时
+> 作为首次启动的"种子"写入 `app_settings` 表。一旦你在 UI 里改过设置，env 不再覆盖数据库里的值。
+> 推荐做法：留空 env，登录后到右上角「⚙ 设置」配置，刷新或重启都不丢。
 
 ## 一键部署 (Docker Compose)
 
@@ -80,10 +84,12 @@ cargo run -p ai-career-copilot
 git clone https://github.com/microlazy-apps/ai-career-copilot-rs.git
 cd ai-career-copilot-rs
 
-# 2. 准备环境变量（至少填 LLM_API_KEY 和 SESSION_SECRET）
+# 2. 准备环境变量
+#    必填：SESSION_SECRET（compose 启动会校验）
+#    可选：LLM_BASE_URL / LLM_API_KEY / LLM_MODEL —— 不填也能启动，
+#         首次登录后到「⚙ 设置」配置即可。
 cp .env.example .env
 sed -i "s/^SESSION_SECRET=.*/SESSION_SECRET=$(openssl rand -hex 32)/" .env
-$EDITOR .env   # 填入 LLM_API_KEY
 
 # 3. 启动（首次会构建镜像，5–10 分钟）
 docker compose up -d --build
@@ -92,7 +98,8 @@ docker compose up -d --build
 curl -fsS http://localhost:${APP_PORT:-8080}/healthz   # => ok
 ```
 
-打开 http://localhost:8080 即可使用。无 OIDC 凭证时，本地可通过浏览器扩展注入 `x-hc-user-id` 头进行调试，详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
+打开 http://localhost:8080 即可使用，**到右上角「⚙ 设置」填入 LLM 凭据**（DeepSeek / OpenAI / Moonshot 等
+OpenAI 兼容协议）后即可对话。无 OIDC 凭证时，本地可通过浏览器扩展注入 `x-hc-user-id` 头进行调试，详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。
 
 常用命令：
 
@@ -132,6 +139,42 @@ GitHub Actions 跑完后会自动产出 `.lpk`，附加到对应的 GitHub Relea
 
 > 首次提交（`bootstrap-app.yml`）需要先把截图放到 `lazycat/screenshots/` 下，
 > 文件名要与 `lazycat/appstore.yml` 的 `screenshots.pc` 对齐。
+
+## 配置
+
+应用所有运行期可调的 LLM 设置都放在**应用内**，不需要重启容器：
+
+| 设置项 | 入口 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| API Base URL | 右上角「⚙ 设置」→「服务端点」 | `https://api.deepseek.com/v1` | OpenAI 兼容协议 |
+| 模型 | 同上 | `deepseek-chat` | 例如 `gpt-4o-mini`、`moonshot-v1-8k` |
+| API Key | 同上 →「访问凭据」 | _(空)_ | 写入数据库后只回 `****abcd` 末四位 hint，原值不再返回 |
+
+设置写入 `app_settings` 表（见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#应用内设置-app_settings)），
+随 `/data/app.db` 一起持久化，重启、升级、`docker compose down && up` 都不丢。设置页内置了：
+
+- **Provider 预设**：DeepSeek / OpenAI / Moonshot 一键填入
+- **测试连通**：调用一次 16-token 的 chat completion，把模型回复回显
+- **状态徽章 / Key hint**：随时知道当前是否已配置
+
+#### 环境变量是"种子"，不是配置
+
+`.env` / `docker-compose.yml` 里的 `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` 仅在数据库还是默认值时
+作为首次启动的种子写入 `app_settings`。一旦在 UI 里改过设置，env 就不再覆盖（避免"我明明改了，怎么重启又变回去"）。
+
+| 场景 | 推荐做法 |
+| --- | --- |
+| 懒猫 lpk 安装 | env 全部不传，登录后到「⚙ 设置」填 |
+| docker compose 自托管 | env 全部不传，登录后到「⚙ 设置」填；或在 `.env` 里填一份方便首次启动 |
+| 本地 `cargo run` | 同上 |
+
+API（带 OIDC cookie 或 `x-hc-user-id` 头）：
+
+```http
+GET  /api/settings           → { llm_base_url, llm_model, llm_api_key_hint, llm_configured, updated_at }
+PUT  /api/settings           # 增量更新；省略字段=不变；llm_api_key=""=清空
+POST /api/settings/test      # 用当前配置打一次 16-token chat completion，回显模型回复
+```
 
 ## 数据存放
 

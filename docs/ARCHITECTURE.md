@@ -24,9 +24,12 @@ pain point) trivial to guarantee.
 ## Module map (`backend/src/`)
 
 ```
-main.rs            wires AppState, routes, embedded Vue dist
+main.rs            wires AppState, routes, embedded Vue dist;
+                   calls settings::seed_from_env() once on boot
 config.rs          env → Config struct, including Lazycat OIDC vars
+                   and EnvDefaults (seed values for app_settings)
 db.rs              sqlx pool + sqlx::migrate!() runner
+settings.rs        AppSettings load/update/seed_from_env over app_settings table
 
 auth/
   oidc.rs          minimal OIDC client over reqwest (no discovery doc)
@@ -34,9 +37,10 @@ auth/
 
 api/
   auth.rs          /auth/oidc/login, /auth/oidc/callback, /auth/me, /auth/logout
-  sessions.rs      /api/sessions CRUD
-  messages.rs      /api/sessions/{id}/messages — SSE streaming chat
-  resume.rs        /api/sessions/{id}/resume — structured resume JSON
+  sessions.rs     /api/sessions CRUD
+  messages.rs     /api/sessions/{id}/messages — SSE streaming chat
+  resume.rs       /api/sessions/{id}/resume — structured resume JSON
+  settings.rs     /api/settings (GET/PUT) + /api/settings/test — in-app LLM config
 
 llm/
   mod.rs           system prompt + re-exports
@@ -91,6 +95,45 @@ This means a hard refresh in the middle of a streaming reply just shows the
 partial message that has already been persisted (if any), and lets the user
 continue the conversation in the next turn — no "first paint is empty"
 regression like in the original FastAPI implementation.
+
+## 应用内设置 (app_settings)
+
+LLM 凭据（base URL / API key / 模型）**不**通过 `lzc-deploy-params.yml` 或环境变量做长期配置 — 那条路径会让用户每次想换模型都要 redeploy。我们把它放进数据库：
+
+```sql
+-- migrations/0002_app_settings.sql
+CREATE TABLE app_settings (
+    scope        TEXT PRIMARY KEY,                  -- 'global' (single row for now)
+    llm_base_url TEXT NOT NULL DEFAULT 'https://api.deepseek.com/v1',
+    llm_api_key  TEXT NOT NULL DEFAULT '',
+    llm_model    TEXT NOT NULL DEFAULT 'deepseek-chat',
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+```
+
+### Read / write surface
+
+| Endpoint | Purpose | Notes |
+|---|---|---|
+| `GET /api/settings` | 读取设置给 UI | 返回 `AppSettingsView`：API key 只回 `****abcd` 末四位 hint，原值不出库 |
+| `PUT /api/settings` | 增量更新 | `llm_base_url` / `llm_model` / `llm_api_key` 都是 `Option<String>`：`None` = 不变；`Some("")` = 清空 |
+| `POST /api/settings/test` | 真实联调 | 用当前配置打一次 16-token chat completion；返回模型回复，前端做"测试连通"按钮 |
+
+### Env 作为种子，不作为配置
+
+`config.rs::EnvDefaults` 收集 `LLM_BASE_URL` / `LLM_API_KEY` / `LLM_MODEL` 三个 env，启动时调用 `settings::seed_from_env`：
+
+- 如果 `app_settings` 里 `llm_api_key` 还是空、`llm_base_url` / `llm_model` 还是出厂默认 → 用 env 填进去（首次启动方便）
+- 一旦 UI 改过 → 已经不是出厂默认 → env **不再覆盖** 数据库
+
+这套机制让两类用户都能舒服：
+
+- **lpk 安装** → env 全空 → 登录后到 UI 填 → 一切都在数据库里
+- **`docker compose up`** → 想用 env 就在 `.env` 里填，开箱启动；想换模型就到 UI 里改，env 失效不影响
+
+### 前端
+
+`frontend/src/components/SettingsModal.vue` 是入口。Provider 预设 / 状态徽章 / 卡片分组 / 测试连通 / dirty-aware 保存按钮等设计细节，详见 [README#配置](../README.md#配置)。
 
 ## Why one binary serves the frontend too
 

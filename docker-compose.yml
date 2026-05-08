@@ -2,11 +2,14 @@
 #
 # Quick start:
 #   1. cp .env.example .env
-#   2. edit .env, fill in LLM_API_KEY (and SESSION_SECRET if you care)
+#   2. edit .env, set SESSION_SECRET (LLM_API_KEY is optional — you can
+#      configure the LLM from the in-app Settings page after first login)
 #   3. docker compose up -d --build
 #
 # The service builds the Rust backend + Vue frontend into a single image
 # (multi-stage build, see Dockerfile) and persists SQLite to a named volume.
+# LLM credentials live in /data/app.db (the `app_settings` table), so they
+# survive `docker compose down/up` and don't need to be in .env at all.
 
 name: ai-career-copilot
 
@@ -31,8 +34,12 @@ services:
       SESSION_SECRET: "${SESSION_SECRET:?set SESSION_SECRET in .env (use openssl rand -hex 32)}"
 
       # --- LLM (OpenAI-compatible; default DeepSeek)
+      # OPTIONAL. These act as a one-time seed for the app_settings table
+      # on first boot only. After you configure the LLM from the in-app
+      # Settings page, the database value wins and these are ignored.
+      # Leave empty if you'd rather configure everything from the UI.
       LLM_BASE_URL: "${LLM_BASE_URL:-https://api.deepseek.com/v1}"
-      LLM_API_KEY: "${LLM_API_KEY:?set LLM_API_KEY in .env}"
+      LLM_API_KEY: "${LLM_API_KEY:-}"
       LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
 
       # --- Public domain used to build OIDC redirect URLs (host[:port])
