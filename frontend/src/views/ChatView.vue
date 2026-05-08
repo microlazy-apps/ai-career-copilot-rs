@@ -160,9 +160,13 @@ onMounted(bootstrap)
         </div>
       </header>
 
-      <div v-if="llmConfigured === false" class="setup-banner">
-        <span>⚠ 还没有配置 LLM API Key — AI 回答暂时无法生成。</span>
-        <button class="header-btn" @click="settingsOpen = true">前往设置</button>
+      <div v-if="llmConfigured === false" class="setup-banner" role="alert">
+        <span class="setup-icon">⚙</span>
+        <div class="setup-text">
+          <strong>欢迎使用</strong>
+          <span>还需要配置 LLM 服务后才能开始对话 — 仅需 30 秒</span>
+        </div>
+        <button class="setup-cta" @click="settingsOpen = true">立即配置 →</button>
       </div>
 
       <div class="messages" ref="messagesEl">
@@ -205,11 +209,37 @@ onMounted(bootstrap)
 .header-btn:hover { background: var(--panel-2); border-color: var(--accent); }
 
 .setup-banner {
-  background: rgba(248, 113, 113, 0.08);
-  border-bottom: 1px solid rgba(248, 113, 113, 0.25);
-  color: #ffd1d1;
-  padding: 10px 24px;
-  display: flex; align-items: center; justify-content: space-between;
+  background:
+    linear-gradient(90deg, rgba(124, 140, 255, 0.10), rgba(74, 222, 128, 0.08));
+  border-bottom: 1px solid rgba(124, 140, 255, 0.28);
+  color: var(--text);
+  padding: 12px 24px;
+  display: flex; align-items: center; gap: 14px;
   font-size: 13px;
 }
+.setup-banner .setup-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #4f5ee8, #7c8cff);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  box-shadow: 0 6px 18px -6px rgba(124, 140, 255, 0.7);
+}
+.setup-banner .setup-text {
+  flex: 1; display: flex; flex-direction: column; gap: 2px;
+}
+.setup-banner .setup-text strong { font-weight: 600; font-size: 13px; }
+.setup-banner .setup-text span { color: var(--text-dim); font-size: 12px; }
+.setup-banner .setup-cta {
+  background: linear-gradient(90deg, #4f5ee8, #7c8cff);
+  color: white; border: 0;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 12.5px;
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+  box-shadow: 0 6px 16px -6px rgba(124, 140, 255, 0.55);
+}
+.setup-banner .setup-cta:hover { transform: translateY(-1px); }
 </style>
