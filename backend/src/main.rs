@@ -47,7 +47,6 @@ async fn main() -> anyhow::Result<()> {
         bind = %cfg.bind_addr,
         data_dir = %cfg.data_dir,
         oidc_configured = cfg.oidc.is_some(),
-        email_login = cfg.email_login_enabled,
         "starting ai-career-copilot",
     );
 

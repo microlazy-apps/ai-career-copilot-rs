@@ -16,9 +16,14 @@ pub async fn me(
     State(state): State<AppState>,
     user: Option<AuthUser>,
 ) -> Json<serde_json::Value> {
+    // The active method is whichever the deployment has wired up: OIDC
+    // when its env vars are present, otherwise the password-less email
+    // fallback. There is intentionally no flag — they are mutually
+    // exclusive by construction.
+    let oidc_available = state.oidc.is_some();
     let methods = json!({
-        "oidc": state.oidc.is_some(),
-        "email": state.cfg.email_login_enabled,
+        "oidc": oidc_available,
+        "email": !oidc_available,
     });
     match user {
         Some(u) => Json(json!({
@@ -148,12 +153,16 @@ pub struct EmailLoginPayload {
 /// verification. The submitted address becomes the stable user
 /// identity (`email:<lowercased>`), distinct from any OIDC `sub`,
 /// and is upserted into the same `users` table as OIDC accounts.
+///
+/// Email login and OIDC are mutually exclusive: when the deployment
+/// has OIDC env vars wired in we refuse this endpoint so callers are
+/// pushed through the proper SSO flow.
 pub async fn email_login(
     State(state): State<AppState>,
     jar: CookieJar,
     Json(payload): Json<EmailLoginPayload>,
 ) -> AppResult<Response> {
-    if !state.cfg.email_login_enabled {
+    if state.oidc.is_some() {
         return Err(AppError::EmailLoginDisabled);
     }
 

@@ -89,9 +89,9 @@ identity.
 ### Email login (non-Lazycat fallback)
 
 Outside Lazycat the `LAZYCAT_AUTH_OIDC_*` vars are absent, so OIDC is
-disabled. `Config::from_env` flips `email_login_enabled = oidc.is_none()`
-— there is **no separate flag**: the two methods are mutually exclusive
-and follow OIDC presence.
+disabled. The app has **no separate switch** for the email fallback —
+`/auth/email/login` simply checks `state.oidc.is_none()` at request
+time and the SPA renders the matching entry from `/auth/me`.
 
 The endpoint is intentionally minimal — issue MIC-5 explicitly framed
 this as "现阶段认证意义不大":

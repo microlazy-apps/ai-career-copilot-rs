@@ -5,7 +5,8 @@ use std::env;
 /// Lazycat injects the `LAZYCAT_AUTH_OIDC_*` and `LAZYCAT_APP_DOMAIN`
 /// vars at install time when `application.oidc_redirect_path` is set
 /// in the lpk manifest, so the app does not need user-supplied OIDC
-/// credentials.
+/// credentials. When OIDC is absent the app exposes the password-less
+/// email login fallback automatically — there is no separate flag.
 ///
 /// LLM credentials are *not* part of this struct — those are stored in
 /// SQLite (`app_settings`) and edited from the in-app Settings page.
@@ -18,9 +19,6 @@ pub struct Config {
     pub database_url: String,
     pub session_secret: String,
     pub oidc: Option<OidcConfig>,
-    /// When true, expose `POST /auth/email/login` as a no-password
-    /// login fallback for environments without Lazycat OIDC.
-    pub email_login_enabled: bool,
     pub app_domain: String,
     pub env_defaults: EnvDefaults,
 }
@@ -61,11 +59,6 @@ impl Config {
 
         let oidc = oidc_from_env(&app_domain);
 
-        // Email login is the fallback when Lazycat OIDC is absent: lpk
-        // installs always have OIDC, so they never see it; everyone
-        // else (docker compose / cargo run) gets it automatically.
-        let email_login_enabled = oidc.is_none();
-
         let env_defaults = EnvDefaults {
             llm_base_url: env::var("LLM_BASE_URL").ok().filter(|s| !s.is_empty()),
             llm_api_key: env::var("LLM_API_KEY").ok().filter(|s| !s.is_empty()),
@@ -78,7 +71,6 @@ impl Config {
             database_url,
             session_secret,
             oidc,
-            email_login_enabled,
             app_domain,
             env_defaults,
         })
