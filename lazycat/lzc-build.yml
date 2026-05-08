@@ -1,0 +1,5 @@
+# Build configuration consumed by `lzc-cli` / lazycat-ci. The Dockerfile at
+# the repo root produces a single binary image that serves both the API and
+# the Vue dist (embedded via rust-embed).
+context: ..
+dockerfile: ../Dockerfile

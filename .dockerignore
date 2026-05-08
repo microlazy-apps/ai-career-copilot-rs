@@ -1,0 +1,12 @@
+target/
+node_modules/
+data/
+*.db
+.git/
+.github/
+.idea/
+.vscode/
+.env
+.env.local
+docs/
+README*.md

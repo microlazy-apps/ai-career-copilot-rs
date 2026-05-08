@@ -1,0 +1,64 @@
+name: AI 求职助手
+package: cloud.lazycat.app.microlazy-apps.ai-career-copilot
+version: 0.1.0
+description: 多轮对话式 AI 求职辅导：JD 解析、简历生成、能力缺口分析、面试问答 — Rust + SQLite 单体，懒猫 OIDC 一键登录。
+license: https://choosealicense.com/licenses/mit/
+homepage: https://github.com/microlazy-apps/ai-career-copilot-rs
+
+application:
+  subdomain: ai-career-copilot
+  oidc_redirect_path: /auth/oidc/callback
+  public_path:
+    - /
+
+  upstreams:
+    - location: /
+      backend: http://main:8080
+
+  health_check:
+    test_url: http://main:8080/healthz
+    timeout: 10s
+    start_period: 30s
+
+  environment:
+    - LAZYCAT_AUTH_OIDC_CLIENT_ID=${LAZYCAT_AUTH_OIDC_CLIENT_ID}
+    - LAZYCAT_AUTH_OIDC_CLIENT_SECRET=${LAZYCAT_AUTH_OIDC_CLIENT_SECRET}
+    - LAZYCAT_AUTH_OIDC_AUTH_URI=${LAZYCAT_AUTH_OIDC_AUTH_URI}
+    - LAZYCAT_AUTH_OIDC_TOKEN_URI=${LAZYCAT_AUTH_OIDC_TOKEN_URI}
+    - LAZYCAT_AUTH_OIDC_USERINFO_URI=${LAZYCAT_AUTH_OIDC_USERINFO_URI}
+    - LAZYCAT_APP_DOMAIN=${LAZYCAT_APP_DOMAIN}
+
+services:
+  main:
+    image: ${LAZYCAT_IMAGE}
+    environment:
+      - TZ=Asia/Shanghai
+      - BIND_ADDR=0.0.0.0:8080
+      - DATA_DIR=/data
+      # `stable_secret` keeps the JWT signing key consistent across restarts so
+      # session cookies survive `lzc-cli redeploy` cycles.
+      - SESSION_SECRET={{stable_secret "SESSION_SECRET"}}
+      # User-supplied LLM credentials (deploy params). Empty by default —
+      # the user fills these in at install time via the Lazycat appstore UI.
+      - LLM_BASE_URL={{ .U.LLM_BASE_URL | default "https://api.deepseek.com/v1" }}
+      - LLM_API_KEY={{ .U.LLM_API_KEY | default "" }}
+      - LLM_MODEL={{ .U.LLM_MODEL | default "deepseek-chat" }}
+    binds:
+      - /lzcapp/var/data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "-T", "5", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+locales:
+  zh:
+    name: AI 求职助手
+    description: 多轮对话 AI 求职辅导，覆盖 JD 解析、简历生成、能力缺口分析、面试问答。
+  zh_CN:
+    name: AI 求职助手
+    description: 多轮对话 AI 求职辅导，覆盖 JD 解析、简历生成、能力缺口分析、面试问答。
+  en:
+    name: AI Career Copilot
+    description: Multi-turn AI career copilot — JD parsing, resume generation, gap analysis, mock interviews. Rust + SQLite single binary with Lazycat OIDC.

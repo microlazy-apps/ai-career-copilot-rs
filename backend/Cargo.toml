@@ -1,0 +1,57 @@
+[package]
+name = "ai-career-copilot"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+# Async runtime + HTTP
+tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8", features = ["macros", "json", "query"] }
+axum-extra = { version = "0.10", features = ["cookie"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "trace", "cors", "compression-gzip"] }
+
+# Serde + JSON
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Database
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "macros", "chrono", "uuid", "migrate"] }
+
+# IDs / time
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+time = "0.3"
+
+# OIDC client built directly on reqwest (Lazycat injects each endpoint
+# URI individually, so we don't need a discovery-doc-based crate).
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+url = "2"
+
+# JWT for our own session token (not OIDC ID token)
+jsonwebtoken = "9"
+
+# Crypto / random
+rand = "0.9"
+base64 = "0.22"
+sha2 = "0.10"
+
+# Errors / logging
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Config
+dotenvy = "0.15"
+
+# Embed frontend dist into binary
+rust-embed = { version = "8", features = ["compression", "include-exclude"] }
+mime_guess = "2"
+
+# Streaming SSE
+async-stream = "0.3"
+futures-util = "0.3"
+bytes = "1"
