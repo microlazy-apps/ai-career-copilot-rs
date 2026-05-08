@@ -1,0 +1,4 @@
+# Drop appstore screenshots here before running the bootstrap-app workflow.
+# Filenames must match lazycat/appstore.yml's `screenshots.pc` list:
+#   - 01-chat.png      (hero, 1280x720+ recommended)
+#   - 02-history.png

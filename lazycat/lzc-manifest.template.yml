@@ -1,10 +1,3 @@
-name: AI 求职助手
-package: cloud.lazycat.app.microlazy-apps.ai-career-copilot
-version: 0.1.0
-description: 多轮对话式 AI 求职辅导：JD 解析、简历生成、能力缺口分析、面试问答 — Rust + SQLite 单体，懒猫 OIDC 一键登录。
-license: https://choosealicense.com/licenses/mit/
-homepage: https://github.com/microlazy-apps/ai-career-copilot-rs
-
 application:
   subdomain: ai-career-copilot
   oidc_redirect_path: /auth/oidc/callback
@@ -49,14 +42,3 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-
-locales:
-  zh:
-    name: AI 求职助手
-    description: 多轮对话 AI 求职辅导，覆盖 JD 解析、简历生成、能力缺口分析、面试问答。
-  zh_CN:
-    name: AI 求职助手
-    description: 多轮对话 AI 求职辅导，覆盖 JD 解析、简历生成、能力缺口分析、面试问答。
-  en:
-    name: AI Career Copilot
-    description: Multi-turn AI career copilot — JD parsing, resume generation, gap analysis, mock interviews. Rust + SQLite single binary with Lazycat OIDC.

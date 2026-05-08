@@ -1,0 +1,46 @@
+package: cloud.lazycat.app.microlazy-apps.ai-career-copilot
+version: ${VERSION}
+name: AI 求职助手
+description: 多轮对话式 AI 求职辅导：JD 解析、简历生成、能力缺口分析、面试问答 — Rust + SQLite 单体，懒猫 OIDC 一键登录。
+author: microlazy-apps
+license: MIT
+homepage: https://github.com/microlazy-apps/ai-career-copilot-rs
+
+unsupported_platforms:
+  - ios
+  - android
+
+locales:
+  zh-CN:
+    name: AI 求职助手
+    description: 多轮对话 AI 求职辅导，覆盖 JD 解析、简历生成、能力缺口分析、面试问答。
+    usage: |
+      安装后从应用面板进入，使用懒猫账号一键登录。
+
+      首次使用：
+      1. 在右上角「设置」中填入 LLM API Key（兼容 OpenAI /v1/chat/completions 协议）
+         默认指向 DeepSeek，可改成 OpenAI / Moonshot / 自托管 vLLM。
+      2. 在左侧侧边栏点「新对话」，描述你的求职目标 / JD / 简历需求。
+      3. 历史会话会持久化到 SQLite，刷新页面、重启容器都不会丢；点侧边栏即可切回。
+
+      数据存放在 /lzcapp/var/data/app.db（SQLite WAL 模式），随容器一起备份。
+  en:
+    name: AI Career Copilot
+    description: >-
+      Multi-turn AI career copilot — JD parsing, resume generation, gap
+      analysis, mock interviews. Rust + SQLite single binary with Lazycat
+      OIDC SSO.
+    usage: |
+      After install, open the app and click "Login with Lazycat".
+
+      First run:
+      1. Fill in your LLM API key under Settings (OpenAI-compatible
+         /v1/chat/completions; defaults to DeepSeek but works with OpenAI,
+         Moonshot, self-hosted vLLM, etc.).
+      2. Start a new chat from the left sidebar — describe your target role,
+         JD, or resume.
+      3. Every message is persisted to SQLite, so refreshing the page or
+         restarting the container never loses history.
+
+      Data lives at /lzcapp/var/data/app.db (SQLite WAL); it is backed up
+      together with the container.

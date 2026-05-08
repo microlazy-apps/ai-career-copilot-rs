@@ -1,5 +1,7 @@
-# Build configuration consumed by `lzc-cli` / lazycat-ci. The Dockerfile at
-# the repo root produces a single binary image that serves both the API and
-# the Vue dist (embedded via rust-embed).
-context: ..
-dockerfile: ../Dockerfile
+# Consumed by `lzc-cli project build` (run from this directory). The image
+# is built/pushed by GitHub Actions; here we only point lzc-cli at the
+# rendered manifest + icon so it can package the lpk.
+pkgout: ./
+icon: ./icon.png
+manifest: ./lzc-manifest.yml
+package: ./package.yml

@@ -1,0 +1,44 @@
+name: Release
+
+# Tag-driven release pipeline:
+#   1. lpk-build:  Docker → ghcr → lzc-cli copy-image → lpk artifact
+#   2. publish:    Attach lpk to GH Release + push to lazycat appstore
+#
+# Trigger by pushing a semver tag, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # Strip the leading `v` so lazycat /lpk/read_from_cos accepts the
+  # version as semver (it rejects "v0.1.0"). taiki-e/create-gh-release
+  # downstream still uses the raw tag (`v0.1.0`) for the GH Release.
+  prep:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: |
+          REF="${{ github.ref_name }}"
+          echo "version=${REF#v}" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prep
+    uses: microlazy-apps/lazycat-ci/.github/workflows/lpk-build.yml@v0.1.0
+    with:
+      version:        ${{ needs.prep.outputs.version }}
+      docker-context: .
+    secrets: inherit
+
+  publish:
+    needs: build
+    uses: microlazy-apps/lazycat-ci/.github/workflows/publish.yml@v0.1.0
+    with:
+      release-tag: ${{ github.ref_name }}
+    secrets: inherit

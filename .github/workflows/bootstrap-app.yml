@@ -1,0 +1,39 @@
+name: Bootstrap appstore (manual)
+
+# One-time first-submission to the lazycat developer center. Run this once
+# to register the app + push the initial review. After approval the regular
+# release.yml takes over for subsequent versions.
+#
+# Requires lazycat/{package.template.yml,appstore.yml,screenshots/}.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver to embed (e.g. 0.1.0)"
+        required: true
+        default: "0.1.0"
+      app_id:
+        description: "Existing app_id (skip /app/create on retry)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    uses: microlazy-apps/lazycat-ci/.github/workflows/lpk-build.yml@v0.1.0
+    with:
+      version:        ${{ inputs.version }}
+      docker-context: .
+    secrets: inherit
+
+  bootstrap:
+    needs: build
+    uses: microlazy-apps/lazycat-ci/.github/workflows/bootstrap.yml@v0.1.0
+    with:
+      version: ${{ inputs.version }}
+      app_id:  ${{ inputs.app_id }}
+    secrets: inherit

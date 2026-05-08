@@ -108,23 +108,30 @@ docker volume ls | grep ai-career   # 查看持久化卷
 
 ## 一键部署到懒猫微服
 
-仓库自带 `lazycat/lzc-manifest.template.yml`（`lzc-deploy-params.yml` 现在是空 stub —— 装好之后无需任何参数即可运行）。
-推荐用 [microlazy-apps/lazycat-ci](https://github.com/microlazy-apps/lazycat-ci) 工作流：
+仓库自带 `lazycat/{package,lzc-manifest}.template.yml`（`lzc-deploy-params.yml` 现在是空 stub —— 装好后无需任何参数即可运行），
+配套两条 GitHub Actions 流水线（基于 [microlazy-apps/lazycat-ci](https://github.com/microlazy-apps/lazycat-ci) 的 reusable workflows）：
 
-```yaml
-# .github/workflows/lpk.yml
-jobs:
-  publish:
-    uses: microlazy-apps/lazycat-ci/.github/workflows/lpk-build.yml@main
-    with:
-      package_id: cloud.lazycat.app.microlazy-apps.ai-career-copilot
-      manifest_template: lazycat/lzc-manifest.template.yml
-      deploy_params: lazycat/lzc-deploy-params.yml
-      dockerfile: Dockerfile
-    secrets: inherit
+| Workflow | 触发 | 作用 |
+| --- | --- | --- |
+| `.github/workflows/release.yml` | `git push origin v*` | Docker → ghcr → lzc-cli copy-image → lpk artifact，附加到 GH Release，并推送到懒猫应用市场 |
+| `.github/workflows/bootstrap-app.yml` | manual `workflow_dispatch` | 一次性首次提交：注册 app + 上传 lpk + 提交审核（之后由 release.yml 接管） |
+
+仓库需要在 **Repository secrets** 里配置：
+
+- `LAZYCAT_USERNAME` / `LAZYCAT_PASSWORD`：懒猫开发者中心账号
+
+发布流程：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-**安装无需输入任何参数**（OIDC、子域名、HTTPS 由懒猫微服自动接管）。第一次登录后到右上角「⚙ 设置」填入 LLM `API Base URL` / `模型` / `API Key`，点「测试连通」验证即可。所有配置写入 `/data/app.db`，重启 / 升级不丢。
+GitHub Actions 跑完后会自动产出 `.lpk`，附加到对应的 GitHub Release，并推送到懒猫应用市场。
+**安装无需输入任何参数**（OIDC、子域名、HTTPS 由懒猫微服自动接管）—— 第一次登录后到右上角「⚙ 设置」填入 LLM `API Base URL` / `模型` / `API Key`，点「测试连通」验证即可。所有配置写入 `/data/app.db`，重启 / 升级不丢。
+
+> 首次提交（`bootstrap-app.yml`）需要先把截图放到 `lazycat/screenshots/` 下，
+> 文件名要与 `lazycat/appstore.yml` 的 `screenshots.pc` 对齐。
 
 ## 数据存放
 

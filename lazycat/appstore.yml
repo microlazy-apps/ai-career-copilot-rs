@@ -1,0 +1,59 @@
+# Submission metadata for the lazycat developer center.
+# Consumed by lazycat/bootstrap-app.py — NOT by lzc-cli or the lazycat
+# runtime. These fields drive POST /api/v3/developer/app/{create,review/create}
+# for the first-time appstore submission.
+#
+# After approval, regular release.yml takes over and this file is no longer
+# referenced.
+
+source: https://github.com/microlazy-apps/ai-career-copilot-rs
+source_author: microlazy-apps
+is_original: true
+keywords: ai,career,resume,interview,job-search,jd-parsing,career-copilot,llm,deepseek,sse,vue,rust
+support_pc: true
+support_mobile: true
+
+screenshots:
+  pc:
+    # Drop 1280x720+ PNG/JPG files into lazycat/screenshots/ before running
+    # the bootstrap-app workflow. The first one is shown as the hero.
+    - lazycat/screenshots/01-chat.png
+    - lazycat/screenshots/02-history.png
+  mobile: []
+
+description:
+  zh-CN: |
+    AI 求职助手是一个面向求职者的多轮对话工具，把简历、JD、面试问答都装进同一个对话流。
+
+    特性
+    - 多轮对话求职辅导：JD 解析、简历内容生成、能力缺口分析、模拟面试
+    - 持久化会话历史：每条消息写入 SQLite，刷新或重启后从侧边栏继续
+    - 流式回答 (SSE)：AI 回答逐 token 渲染，体感与 ChatGPT 一致
+    - 懒猫微服 OIDC 一键登录：通过 oidc_redirect_path 自动接入懒猫账号
+    - OpenAI 兼容 LLM：默认 DeepSeek，可换 OpenAI / Moonshot / 自托管 vLLM
+    - 单二进制部署：Vue 产物通过 rust-embed 打进 Rust 二进制
+
+    安装后从应用面板进入，使用懒猫账号一键登录，再到右上角「设置」
+    填入 LLM API Key 即可使用。
+
+    源码: https://github.com/microlazy-apps/ai-career-copilot-rs
+  en: |
+    AI Career Copilot is a multi-turn conversational tool for job seekers —
+    resumes, JDs, and interview Q&A all live in the same chat thread.
+
+    Features
+    - Multi-turn career copilot: JD parsing, resume generation, skill-gap
+      analysis, mock interviews
+    - Durable history: every message persists to SQLite; refreshing the
+      page or restarting the container never loses chat threads
+    - Streaming answers (SSE): tokens stream like ChatGPT
+    - Lazycat OIDC SSO: one-click login via oidc_redirect_path
+    - OpenAI-compatible LLM: defaults to DeepSeek; works with OpenAI,
+      Moonshot, self-hosted vLLM, etc.
+    - Single binary: the Vue dist is embedded into the Rust binary via
+      rust-embed
+
+    After install, open the app, sign in with your lazycat account, then
+    paste an LLM API key under Settings — that's it.
+
+    Source: https://github.com/microlazy-apps/ai-career-copilot-rs

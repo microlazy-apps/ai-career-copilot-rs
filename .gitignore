@@ -22,3 +22,8 @@ frontend/dist
 # Env
 .env
 .env.local
+
+# Lazycat — rendered from templates by build-lpk.sh; lpk artifacts
+lazycat/lzc-manifest.yml
+lazycat/package.yml
+lazycat/*.lpk
