@@ -1,6 +1,0 @@
-# No deploy parameters required.
-#
-# All app configuration (LLM base URL / API key / model) is set from the
-# in-app Settings page after first login. This file is kept as a stub so
-# the lazycat-ci pipeline can still reference it without errors.
-{}

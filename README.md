@@ -115,7 +115,7 @@ docker volume ls | grep ai-career   # 查看持久化卷
 
 ## 一键部署到懒猫微服
 
-仓库自带 `lazycat/{package,lzc-manifest}.template.yml`（`lzc-deploy-params.yml` 现在是空 stub —— 装好后无需任何参数即可运行），
+仓库自带 `lazycat/{package,lzc-manifest}.template.yml` —— 安装时不需要任何参数（凭据从应用内「⚙ 设置」配置）。
 配套两条 GitHub Actions 流水线（基于 [microlazy-apps/lazycat-ci](https://github.com/microlazy-apps/lazycat-ci) 的 reusable workflows）：
 
 | Workflow | 触发 | 作用 |

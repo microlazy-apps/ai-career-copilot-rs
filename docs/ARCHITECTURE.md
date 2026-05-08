@@ -98,7 +98,7 @@ regression like in the original FastAPI implementation.
 
 ## 应用内设置 (app_settings)
 
-LLM 凭据（base URL / API key / 模型）**不**通过 `lzc-deploy-params.yml` 或环境变量做长期配置 — 那条路径会让用户每次想换模型都要 redeploy。我们把它放进数据库：
+LLM 凭据（base URL / API key / 模型）**不**通过懒猫部署参数或环境变量做长期配置 — 那条路径会让用户每次想换模型都要 redeploy。我们把它放进数据库：
 
 ```sql
 -- migrations/0002_app_settings.sql
