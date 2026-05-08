@@ -81,7 +81,7 @@ pub async fn stream(
 
     // 3. Build the prompt history for the LLM.
     let history = recent_history(&state.db, &session_id).await?;
-    let mut messages = Vec::with_capacity(history.len() + 1);
+    let mut messages = Vec::with_capacity(history.len() + 3);
     messages.push(ChatMessage {
         role: "system".into(),
         content: crate::llm::SYSTEM_PROMPT.into(),
@@ -93,6 +93,12 @@ pub async fn stream(
                 content: format!("当前目标岗位 JD：\n{jd}"),
             });
         }
+    }
+    if let Some(resume_block) = build_resume_context(&state.db, &session_id).await? {
+        messages.push(ChatMessage {
+            role: "system".into(),
+            content: resume_block,
+        });
     }
     for m in history {
         messages.push(ChatMessage {
@@ -246,6 +252,82 @@ async fn bump_session_updated(db: &sqlx::SqlitePool, session_id: &str) -> AppRes
         .execute(db)
         .await?;
     Ok(())
+}
+
+/// Pull every uploaded resume attachment for this session and stitch
+/// their extracted text into a single system message. Returns `None`
+/// when there are no usable attachments. Capped to keep the prompt
+/// bounded across multiple files.
+const MAX_RESUME_PROMPT_CHARS: usize = 24_000;
+
+#[derive(Debug, sqlx::FromRow)]
+struct AttachmentForPrompt {
+    pub filename: String,
+    pub extracted_text: String,
+    pub extract_status: String,
+}
+
+async fn build_resume_context(
+    db: &sqlx::SqlitePool,
+    session_id: &str,
+) -> AppResult<Option<String>> {
+    let rows: Vec<AttachmentForPrompt> = sqlx::query_as(
+        r#"
+        SELECT filename, extracted_text, extract_status
+          FROM resume_attachments
+         WHERE session_id = ?1
+         ORDER BY created_at ASC
+        "#,
+    )
+    .bind(session_id)
+    .fetch_all(db)
+    .await?;
+
+    if rows.is_empty() {
+        return Ok(None);
+    }
+
+    let mut block = String::from("用户已经上传了以下简历附件，请把它们当作权威事实来源，结合对话回答：\n\n");
+    let mut budget = MAX_RESUME_PROMPT_CHARS;
+    let mut any_text = false;
+    for (idx, att) in rows.iter().enumerate() {
+        let text = att.extracted_text.trim();
+        if text.is_empty() {
+            block.push_str(&format!(
+                "【附件 {}】{}（解析失败，仅保留文件名作参考）\n\n",
+                idx + 1,
+                att.filename
+            ));
+            continue;
+        }
+        any_text = true;
+        let snippet: String = text.chars().take(budget).collect();
+        let used = snippet.chars().count();
+        let suffix = if used < text.chars().count() {
+            "\n…（已截断，请向用户追问关键细节）"
+        } else if att.extract_status == "partial" {
+            "\n…（原文超过单文件上限，仅保留前段）"
+        } else {
+            ""
+        };
+        block.push_str(&format!(
+            "【附件 {}】{}\n{}\n{}\n\n",
+            idx + 1,
+            att.filename,
+            snippet,
+            suffix
+        ));
+        budget = budget.saturating_sub(used);
+        if budget == 0 {
+            break;
+        }
+    }
+
+    if !any_text {
+        return Ok(None);
+    }
+
+    Ok(Some(block.trim_end().to_string()))
 }
 
 async fn recent_history(

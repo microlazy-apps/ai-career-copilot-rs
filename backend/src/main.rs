@@ -14,6 +14,7 @@ mod config;
 mod db;
 mod embed;
 mod error;
+mod extract;
 mod llm;
 mod models;
 mod settings;
@@ -79,10 +80,23 @@ async fn main() -> anyhow::Result<()> {
             get(api::resume::get).put(api::resume::upsert),
         )
         .route(
+            "/sessions/{id}/attachments",
+            get(api::attachments::list).post(api::attachments::upload),
+        )
+        .route(
+            "/sessions/{id}/attachments/{aid}",
+            get(api::attachments::get).delete(api::attachments::delete),
+        )
+        .route(
+            "/sessions/{id}/attachments/{aid}/download",
+            get(api::attachments::download),
+        )
+        .route(
             "/settings",
             get(api::settings::get).put(api::settings::update),
         )
-        .route("/settings/test", post(api::settings::test_llm));
+        .route("/settings/test", post(api::settings::test_llm))
+        .layer(axum::extract::DefaultBodyLimit::max(12 * 1024 * 1024));
 
     let auth_routes = Router::new()
         .route("/oidc/login", get(api::auth::login))

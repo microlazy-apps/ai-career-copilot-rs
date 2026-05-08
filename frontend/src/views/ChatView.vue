@@ -8,6 +8,7 @@ import Sidebar from '../components/Sidebar.vue'
 import MessageList from '../components/MessageList.vue'
 import Composer from '../components/Composer.vue'
 import SettingsModal from '../components/SettingsModal.vue'
+import ResumePanel from '../components/ResumePanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -55,6 +56,31 @@ async function ensureActiveSession(): Promise<string> {
   router.replace(`/c/${id}`)
   await chat.selectSession(id)
   return id
+}
+
+async function onUploadResume(file: File) {
+  const hadActive = !!chat.activeId
+  if (!hadActive) {
+    const id = await chat.createSession()
+    router.replace(`/c/${id}`)
+    await chat.selectSession(id)
+  }
+  await chat.uploadAttachment(file)
+}
+
+async function onRemoveResume(id: string) {
+  if (!chat.activeId) return
+  if (!window.confirm('确定删除这份简历吗？AI 将不再把它作为事实依据。')) return
+  await chat.removeAttachment(id)
+}
+
+const emptyUploadInput = ref<HTMLInputElement | null>(null)
+async function onEmptyUpload(e: Event) {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  target.value = ''
+  if (!file) return
+  await onUploadResume(file)
 }
 
 async function onSend(text: string) {
@@ -169,6 +195,17 @@ onMounted(bootstrap)
         <button class="setup-cta" @click="settingsOpen = true">立即配置 →</button>
       </div>
 
+      <div v-if="activeSession" class="resume-zone">
+        <div class="center">
+          <ResumePanel
+            :attachments="chat.attachments"
+            :uploading="chat.uploading"
+            @upload="onUploadResume"
+            @remove="onRemoveResume"
+          />
+        </div>
+      </div>
+
       <div class="messages" ref="messagesEl">
         <div class="center" v-if="chat.messages.length || chat.activeId">
           <MessageList :messages="chat.messages" :streaming="chat.streaming" />
@@ -186,6 +223,16 @@ onMounted(bootstrap)
             <button class="chip" @click="onPickPrompt('针对当前岗位，给我 8 道高频面试题与参考答案')">
               🎤 模拟面试问答
             </button>
+            <button class="chip" @click="emptyUploadInput?.click()">
+              📎 上传简历附件
+            </button>
+            <input
+              ref="emptyUploadInput"
+              type="file"
+              accept=".pdf,.docx,.txt,.md,.markdown"
+              class="hidden-input"
+              @change="onEmptyUpload"
+            />
           </div>
         </div>
       </div>
@@ -242,4 +289,15 @@ onMounted(bootstrap)
   box-shadow: 0 6px 16px -6px rgba(124, 140, 255, 0.55);
 }
 .setup-banner .setup-cta:hover { transform: translateY(-1px); }
+
+.resume-zone {
+  padding: 12px 24px 0;
+  background: var(--bg);
+}
+.resume-zone .center {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.hidden-input { display: none; }
 </style>

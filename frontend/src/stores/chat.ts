@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { api, type Message, type SessionView } from '../api'
+import { api, type AttachmentSummary, type Message, type SessionView } from '../api'
 
 export const useChatStore = defineStore('chat', () => {
   const sessions = ref<SessionView[]>([])
   const messages = ref<Message[]>([])
+  const attachments = ref<AttachmentSummary[]>([])
   const activeId = ref<string | null>(null)
   const streaming = ref(false)
+  const uploading = ref(false)
   const error = ref<string | null>(null)
 
   async function loadSessions() {
@@ -20,8 +22,52 @@ export const useChatStore = defineStore('chat', () => {
   async function selectSession(id: string) {
     activeId.value = id
     messages.value = []
+    attachments.value = []
     try {
-      messages.value = await api.listMessages(id)
+      const [msgs, atts] = await Promise.all([
+        api.listMessages(id),
+        api.listAttachments(id),
+      ])
+      messages.value = msgs
+      attachments.value = atts
+    } catch (e) {
+      error.value = (e as Error).message
+    }
+  }
+
+  async function loadAttachments() {
+    if (!activeId.value) return
+    try {
+      attachments.value = await api.listAttachments(activeId.value)
+    } catch (e) {
+      error.value = (e as Error).message
+    }
+  }
+
+  async function uploadAttachment(file: File): Promise<boolean> {
+    if (!activeId.value) {
+      const id = await createSession()
+      activeId.value = id
+    }
+    uploading.value = true
+    error.value = null
+    try {
+      const att = await api.uploadAttachment(activeId.value!, file)
+      attachments.value = [att, ...attachments.value]
+      return true
+    } catch (e) {
+      error.value = (e as Error).message
+      return false
+    } finally {
+      uploading.value = false
+    }
+  }
+
+  async function removeAttachment(id: string) {
+    if (!activeId.value) return
+    try {
+      await api.deleteAttachment(activeId.value, id)
+      attachments.value = attachments.value.filter((a) => a.id !== id)
     } catch (e) {
       error.value = (e as Error).message
     }
@@ -45,6 +91,7 @@ export const useChatStore = defineStore('chat', () => {
     if (activeId.value === id) {
       activeId.value = null
       messages.value = []
+      attachments.value = []
     }
   }
 
@@ -102,11 +149,16 @@ export const useChatStore = defineStore('chat', () => {
   return {
     sessions,
     messages,
+    attachments,
     activeId,
     streaming,
+    uploading,
     error,
     loadSessions,
     selectSession,
+    loadAttachments,
+    uploadAttachment,
+    removeAttachment,
     createSession,
     renameSession,
     removeSession,
